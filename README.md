@@ -90,3 +90,4 @@ Block data can be altered via the 'sage/blocks/[block-name]/data' filter. For ex
 ```php
 add_filter('sage/blocks/my-block/data', function ($block) { // Do your thing here. });
 ```
+ 
