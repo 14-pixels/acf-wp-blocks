@@ -13,25 +13,19 @@ if (! function_exists('add_action')) {
     return;
 }
 
-// Add the default blocks location, 'views/blocks', via filter
-add_filter('sage-acf-gutenberg-blocks-templates', function () {
-    $blocksDir = 'views/blocks';
-    if (isSage10()) {
-        $blocksDir = "resources/$blocksDir";
-    }
+// Add the default blocks location, 'theme/blocks', via filter
+add_filter('acf-gutenberg-blocks-templates', function () {
+    $blocksDir = 'theme/blocks';
     return array($blocksDir);
 });
 
 /**
- * Create blocks based on templates found in Sage's "views/blocks" directory
+ * Create blocks based on templates found in "views/blocks" directory
  */
 add_action('acf/init', function () {
 
-    // Global $sage_error so we can throw errors in the typical sage manner
-    global $sage_error;
-
     // Get an array of directories containing blocks
-    $directories = apply_filters('sage-acf-gutenberg-blocks-templates', []);
+    $directories = apply_filters('acf-gutenberg-blocks-templates', []);
 
     // Check whether ACF exists before continuing
     foreach ($directories as $dir) {
@@ -75,11 +69,11 @@ add_action('acf/init', function () {
                 ]);
 
                 if (empty($file_headers['title'])) {
-                    $sage_error(__('This block needs a title: ' . $dir . '/' . $template->getFilename(), 'sage'), __('Block title missing', 'sage'));
+					throw new \Exception(__('This block needs a title: ' . $dir . '/' . $template->getFilename(), 'sage'));
                 }
 
                 if (empty($file_headers['category'])) {
-                    $sage_error(__('This block needs a category: ' . $dir . '/' . $template->getFilename(), 'sage'), __('Block category missing', 'sage'));
+					throw new \Exception(__('This block needs a category: ' . $dir . '/' . $template->getFilename(), 'sage'));
                 }
 
                 // Checks if dist contains this asset, then enqueues the dist version.
@@ -101,7 +95,7 @@ add_action('acf/init', function () {
                     'keywords' => explode(' ', $file_headers['keywords']),
                     'mode' => $file_headers['mode'],
                     'align' => $file_headers['align'],
-                    'render_callback'  => __NAMESPACE__.'\\sage_blocks_callback',
+                    'render_callback'  => __NAMESPACE__.'\\blocks_callback',
                     'enqueue_style'   => $file_headers['enqueue_style'],
                     'enqueue_script'  => $file_headers['enqueue_script'],
                     'enqueue_assets'  => $file_headers['enqueue_assets'],
@@ -142,7 +136,7 @@ add_action('acf/init', function () {
 /**
  * Callback to register blocks
  */
-function sage_blocks_callback($block, $content = '', $is_preview = false, $post_id = 0)
+function blocks_callback($block, $content = '', $is_preview = false, $post_id = 0)
 {
 
     // Set up the slug to be useful
@@ -169,13 +163,11 @@ function sage_blocks_callback($block, $content = '', $is_preview = false, $post_
     // Join up the classes.
     $block['classes'] = implode(' ', array_filter($block['classes']));
 
-    if (isSage10()) {
-        // Use Sage's view() function to echo the block and populate it with data
-        echo \Roots\view("blocks/${slug}", ['block' => $block]);
-    } else {
-        // Use Sage 9's template() function to echo the block and populate it with data
-        echo \App\template("blocks/${slug}", ['block' => $block]);
-    }
+	$blade = new \WPEmergeBlade\View\Blade(
+		[get_stylesheet_directory(), get_template_directory()],
+		get_stylesheet_directory() . DIRECTORY_SEPARATOR . 'cache' . DIRECTORY_SEPARATOR . 'blade'
+	);
+	echo $blade->render("blocks/${slug}", ['block' => $block]);
 }
 
 /**
@@ -204,16 +196,6 @@ function removeBladeExtension($filename)
 function checkAssetPath(&$path)
 {
     if (preg_match("/^(styles|scripts)/", $path)) {
-        $path = isSage10() ? \Roots\asset($path)->uri() : \App\asset_path($path);
+        $path = \App\asset_path($path);
     }
-}
-
-/**
- * Check if Sage 10 is used.
- *
- * @return bool
- */
-function isSage10()
-{
-    return class_exists('Roots\Acorn\Application');
 }
